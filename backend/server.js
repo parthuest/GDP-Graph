@@ -3,7 +3,9 @@ const app = express();
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const axios = require("axios");
-const apiUrl = "http://api.worldbank.org/countries/USA/indicators/NY.GDP.MKTP.CD?per_page=5000&format=json";
+const JSON = require("circular-json")
+const apiUrl =
+    "http://api.worldbank.org/countries/USA/indicators/NY.GDP.MKTP.CD?per_page=5000&format=json";
 
 //use cors to allow cross origin resource sharing
 app.use(cors({ origin: "http://localhost:3000", credentials: true }));
@@ -32,18 +34,25 @@ app.use(function(req, res, next) {
     next();
 });
 
-app.get("/api/graph", (req, res, next) => {
-    console.log("/api/graph")
-    axios
-    .get(apiUrl)
-    .then(result => {
-        res.status(200)
-        .send(result.data)
-    })
-    .catch(err =>{
-        res.status(422)
-        .send(err)
-    });
+app.get("/api/graph", async (req, res, next) => {
+    console.log("/api/graph");
+    try {
+        const result = await axios.get(apiUrl);
+        let resData = result.data[1].map(element => {
+            return {
+                val: element.value ? element.value / 100000000000 : 0,
+                year: element.date
+            };
+        });
+        res.status(200).send(resData);
+    } catch (error) {
+        next(error);
+    }
+});
+
+app.use(function(err, req, res, next) {
+    console.log(err)
+    res.status(422).send(JSON.stringify(err));
 });
 
 module.exports = app;
